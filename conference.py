@@ -553,4 +553,48 @@ class ConferenceApi(remote.Service):
         )
 
 
+    def _copySessionToForm(self, conf):
+        pass
+
+
+    def _createSessionObject(self, request):
+        pass
+
+
+    @endpoints.method(message_types.VoidMessage,
+                      SessionForm,
+                      path='getConferenceSessions',
+                      http_method='GET',
+                      name='getConferenceSessions')
+    def getConferenceSessions(self, websafeConferenceKey):
+        pass
+
+
+    @endpoints.method(message_types.VoidMessage,
+                      SessionForm,
+                      path='getConferenceSessionsByType',
+                      http_method='GET',
+                      name='getConferenceSessionsByType')
+    def getConferenceSessionsByType(self, websafeConferenceKey, typeOfSession):
+        pass
+
+
+    @endpoints.method(message_types.VoidMessage,
+                      SessionForm,
+                      path='getSessionsBySpeaker',
+                      http_method='GET',
+                      name='getSessionsBySpeaker')
+    def getSessionsBySpeaker(self, speaker):
+        pass
+
+
+    @endpoints.method(SessionForm,
+                      SessionForm,
+                      path='createSession',
+                      http_method='POST',
+                      name='createSession')
+    def createSession(self, SessionForm, websafeConferenceKey):
+        pass
+
+
 api = endpoints.api_server([ConferenceApi]) # register API
