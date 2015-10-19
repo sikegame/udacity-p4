@@ -13,6 +13,7 @@ created by wesc on 2014 apr 21
 __author__ = 'wesc+api@google.com (Wesley Chun)'
 
 
+from functools import wraps
 from datetime import datetime
 
 import endpoints
@@ -85,6 +86,29 @@ CONF_POST_REQUEST = endpoints.ResourceContainer(
     ConferenceForm,
     websafeConferenceKey=messages.StringField(1),
 )
+
+SESSION_GET_REQUEST = endpoints.ResourceContainer(
+    message_types.VoidMessage,
+    websafeConferenceKey=messages.StringField(1)
+)
+
+SESSION_POST_REQUEST = endpoints.ResourceContainer(
+    SessionForm,
+    websafeConferenceKey=messages.StringField(1)
+)
+
+
+def authentication_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException(
+                'Authentication required'
+            )
+        return f(*args, **kwargs)
+    return decorated_function
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -347,13 +371,9 @@ class ConferenceApi(remote.Service):
         return pf
 
 
+    @authentication_required
     def _getProfileFromUser(self):
         """Return user Profile from datastore, creating new one if non-existent."""
-        # make sure user is authed
-        user = endpoints.get_current_user()
-        if not user:
-            raise endpoints.UnauthorizedException('Authorization required')
-
         # get Profile from datastore
         user_id = getUserId(user)
         p_key = ndb.Key(Profile, user_id)
@@ -544,21 +564,59 @@ class ConferenceApi(remote.Service):
         # value = "London"
         # f = ndb.query.FilterNode(field, operator, value)
         # q = q.filter(f)
-        q = q.filter(Conference.city=="London")
-        q = q.filter(Conference.topics=="Medical Innovations")
-        q = q.filter(Conference.month==6)
+        #q = q.filter(Conference.city=="London")
+        #q = q.filter(Conference.topics=="Medical Innovations")
+        #q = q.filter(Conference.month==6)
 
         return ConferenceForms(
             items=[self._copyConferenceToForm(conf, "") for conf in q]
         )
 
 
-    def _copySessionToForm(self, conf):
-        pass
+    def _copySessionToForm(self, sess):
+        sf = SessionForm()
+        for field in sf.all_fields():
+            if hasattr(sess, field.name):
+                setattr(sf, field.name, getattr(sess, field.name))
+        sf.check_initialized()
+        return sf
 
 
+    @authentication_required
     def _createSessionObject(self, request):
-        pass
+        c_key = ndb.Key(urlsafe=request.websafeConferenceKey)
+        conf = c_key.get()
+
+        # Check if conf exists
+        if not conf:
+            raise endpoints.NotFoundException(
+                'Conference not found with provided key'
+            )
+
+        # Check if user has right permission
+        user = endpoints.get_current_user()
+        user_id = getUserId(user)
+        if user_id != conf.organizerUserId:
+            raise endpoints.ForbiddenException(
+                'You must be the organizer of the conference'
+            )
+
+        data = {
+            field.name: getattr(request, field.name)
+            for field in request.all_fields()
+            }
+
+        del data['websafeConferenceKey']
+
+        s_id = Session.allocate_ids(size=1, parent=c_key)[0]
+        s_key = ndb.Key(Session, s_id, parent=c_key)
+        data['key'] = s_key
+
+        Session(**data).put()
+
+        # NEED TO ADD TASKQUEUE HERE
+
+        return self._copySessionToForm(request)
 
 
     @endpoints.method(message_types.VoidMessage,
@@ -579,22 +637,22 @@ class ConferenceApi(remote.Service):
         pass
 
 
-    @endpoints.method(message_types.VoidMessage,
+    @endpoints.method(SESSION_GET_REQUEST,
                       SessionForm,
-                      path='getSessionsBySpeaker',
+                      path='conference/{websafeConferenceKey}/sessions',
                       http_method='GET',
                       name='getSessionsBySpeaker')
     def getSessionsBySpeaker(self, speaker):
         pass
 
 
-    @endpoints.method(SessionForm,
+    @endpoints.method(SESSION_POST_REQUEST,
                       SessionForm,
-                      path='createSession',
+                      path='conference/{websafeConferenceKey}/create',
                       http_method='POST',
                       name='createSession')
-    def createSession(self, SessionForm, websafeConferenceKey):
-        pass
+    def createSession(self, request):
+        return self._createSessionObject(request)
 
 
 api = endpoints.api_server([ConferenceApi]) # register API
