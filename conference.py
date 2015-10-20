@@ -39,6 +39,9 @@ from models import ConferenceQueryForms
 from models import TeeShirtSize
 from models import Session
 from models import SessionForm
+from models import SessionForms
+from models import SessionByTypeQueryForm
+from models import SpeakerQueryForm
 
 from settings import WEB_CLIENT_ID
 from settings import ANDROID_CLIENT_ID
@@ -94,6 +97,11 @@ SESSION_GET_REQUEST = endpoints.ResourceContainer(
 
 SESSION_POST_REQUEST = endpoints.ResourceContainer(
     SessionForm,
+    websafeConferenceKey=messages.StringField(1)
+)
+
+SESSION_BY_TYPE_REQUEST = endpoints.ResourceContainer(
+    SessionByTypeQueryForm,
     websafeConferenceKey=messages.StringField(1)
 )
 
@@ -375,6 +383,7 @@ class ConferenceApi(remote.Service):
     def _getProfileFromUser(self):
         """Return user Profile from datastore, creating new one if non-existent."""
         # get Profile from datastore
+        user = endpoints.get_current_user()
         user_id = getUserId(user)
         p_key = ndb.Key(Profile, user_id)
         profile = p_key.get()
@@ -590,7 +599,7 @@ class ConferenceApi(remote.Service):
         # Check if conf exists
         if not conf:
             raise endpoints.NotFoundException(
-                'Conference not found with provided key'
+                'Parent conference was not found'
             )
 
         # Check if user has right permission
@@ -619,31 +628,76 @@ class ConferenceApi(remote.Service):
         return self._copySessionToForm(request)
 
 
-    @endpoints.method(message_types.VoidMessage,
-                      SessionForm,
-                      path='getConferenceSessions',
-                      http_method='GET',
-                      name='getConferenceSessions')
-    def getConferenceSessions(self, websafeConferenceKey):
-        pass
-
-
-    @endpoints.method(message_types.VoidMessage,
-                      SessionForm,
-                      path='getConferenceSessionsByType',
-                      http_method='GET',
-                      name='getConferenceSessionsByType')
-    def getConferenceSessionsByType(self, websafeConferenceKey, typeOfSession):
-        pass
-
-
     @endpoints.method(SESSION_GET_REQUEST,
-                      SessionForm,
+                      SessionForms,
                       path='conference/{websafeConferenceKey}/sessions',
                       http_method='GET',
+                      name='getConferenceSessions')
+    def getConferenceSessions(self, request):
+        sessions = Session.query(
+            ancestor=ndb.Key(urlsafe=request.websafeConferenceKey)
+        )\
+            .order(Session.start_time)
+
+        if not sessions:
+            raise endpoints.NotFoundException(
+                'No sessions were found for the conference'
+            )
+
+        return SessionForms(
+            sessions=[self._copySessionToForm(sess) for sess in sessions]
+        )
+
+
+    @endpoints.method(SESSION_BY_TYPE_REQUEST,
+                      SessionForms,
+                      path='conference/{websafeConferenceKey}/type',
+                      http_method='POST',
+                      name='getConferenceSessionsByType')
+    def getConferenceSessionsByType(self, request):
+        if not request.session_type:
+            raise endpoints.BadRequestException(
+                'Required field is missing'
+            )
+
+        sessions = Session.query(
+            ancestor=ndb.Key(urlsafe=request.websafeConferenceKey)
+        )\
+            .filter(Session.session_type == request.session_type)\
+            .order(Session.start_time)
+
+        if not sessions:
+            raise endpoints.NotFoundException(
+                'No session were found'
+            )
+
+        return SessionForms(
+            sessions=[self._copySessionToForm(sess) for sess in sessions]
+        )
+
+
+    @endpoints.method(SpeakerQueryForm,
+                      SessionForms,
+                      path='getSessionsBySpeaker',
+                      http_method='POST',
                       name='getSessionsBySpeaker')
-    def getSessionsBySpeaker(self, speaker):
-        pass
+    def getSessionsBySpeaker(self, request):
+        if not request.speaker:
+            raise endpoints.BadRequestException(
+                'Required field is missing'
+            )
+
+        sessions = Session.query(Session.speakers == request.speaker)\
+            .order(Session.start_time)
+
+        if not sessions:
+            raise endpoints.NotFoundException(
+                'No sessions were found'
+            )
+
+        return SessionForms(
+            sessions=[self._copySessionToForm(sess) for sess in sessions]
+        )
 
 
     @endpoints.method(SESSION_POST_REQUEST,

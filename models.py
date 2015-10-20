@@ -122,6 +122,7 @@ class ConferenceQueryForms(messages.Message):
 
 
 class Session(ndb.Model):
+    name = ndb.StringProperty()
     speakers = ndb.StringProperty(repeated=True)
     highlights = ndb.StringProperty(repeated=True)
     start_time = ndb.DateTimeProperty()
@@ -131,9 +132,22 @@ class Session(ndb.Model):
 
 
 class SessionForm(messages.Message):
-    speakers = messages.StringField(1, repeated=True)
-    highlights = messages.StringField(2, repeated=True)
-    start_time = messages.StringField(3)  # DateTimeField()
-    duration = messages.IntegerField(4)
-    session_type = messages.StringField(5)
-    location = messages.StringField(6)
+    name = messages.StringField(1, required=True)
+    speakers = messages.StringField(2, repeated=True)
+    highlights = messages.StringField(3, repeated=True)
+    start_time = messages.StringField(4)  # DateTimeField()
+    duration = messages.IntegerField(5)
+    session_type = messages.StringField(6)
+    location = messages.StringField(7)
+
+
+class SessionForms(messages.Message):
+    sessions = messages.MessageField(SessionForm, 1, repeated=True)
+
+
+class SessionByTypeQueryForm(messages.Message):
+    session_type = messages.StringField(1, required=True)
+
+
+class SpeakerQueryForm(messages.Message):
+    speaker = messages.StringField(1, required=True)
