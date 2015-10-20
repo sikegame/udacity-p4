@@ -34,7 +34,6 @@ from models import BooleanMessage
 from models import Conference
 from models import ConferenceForm
 from models import ConferenceForms
-from models import ConferenceQueryForm
 from models import ConferenceQueryForms
 from models import TeeShirtSize
 from models import Session
@@ -105,6 +104,11 @@ SESSION_BY_TYPE_REQUEST = endpoints.ResourceContainer(
     websafeConferenceKey=messages.StringField(1)
 )
 
+WISHLIST_POST_REQUEST = endpoints.ResourceContainer(
+    message_types.VoidMessage,
+    websafeSessionKey=messages.StringField(1)
+)
+
 
 def authentication_required(f):
     @wraps(f)
@@ -117,6 +121,18 @@ def authentication_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+"""
+@contextmanager
+def get_user_prof():
+    user = endpoints.get_current_user()
+    user_id = getUserId(user)
+    prof = ndb.Key(Profile, user_id).get()
+    try:
+        yield prof
+    except:
+        raise
+"""
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -562,12 +578,15 @@ class ConferenceApi(remote.Service):
         return self._conferenceRegistration(request, reg=False)
 
 
-    @endpoints.method(message_types.VoidMessage, ConferenceForms,
-            path='filterPlayground',
-            http_method='GET', name='filterPlayground')
+    @endpoints.method(message_types.VoidMessage,
+                      StringMessage,
+                      path='filterPlayground',
+                      http_method='GET',
+                      name='filterPlayground')
+    @authentication_required
     def filterPlayground(self, request):
         """Filter Playground"""
-        q = Conference.query()
+        #q = Conference.query()
         # field = "city"
         # operator = "="
         # value = "London"
@@ -576,9 +595,15 @@ class ConferenceApi(remote.Service):
         #q = q.filter(Conference.city=="London")
         #q = q.filter(Conference.topics=="Medical Innovations")
         #q = q.filter(Conference.month==6)
+        user = endpoints.get_current_user()
+        user_id = getUserId(user)
+        if not user_id:
+            raise endpoints.NotFoundException(
+                'No Data'
+            )
 
-        return ConferenceForms(
-            items=[self._copyConferenceToForm(conf, "") for conf in q]
+        return StringMessage(
+            data=user_id
         )
 
 
@@ -586,7 +611,12 @@ class ConferenceApi(remote.Service):
         sf = SessionForm()
         for field in sf.all_fields():
             if hasattr(sess, field.name):
-                setattr(sf, field.name, getattr(sess, field.name))
+                if field.name == 'start_time':
+                    dt = getattr(sess, 'start_time')
+                    setattr(sf, 'session_date', str(dt.date()))
+                    setattr(sf, 'start_time', str(dt.time()))
+                else:
+                    setattr(sf, field.name, getattr(sess, field.name))
         sf.check_initialized()
         return sf
 
@@ -616,6 +646,17 @@ class ConferenceApi(remote.Service):
             }
 
         del data['websafeConferenceKey']
+
+        data['start_time'] = datetime.strptime(
+            data['start_time'], "%Y-%m-%d %H:%M:%S"
+        )
+
+        session_date = data['start_time'].date()
+        if (conf.startDate > session_date) or \
+                (conf.endDate < session_date):
+            raise endpoints.BadRequestException(
+                'Session must held during the conference'
+            )
 
         s_id = Session.allocate_ids(size=1, parent=c_key)[0]
         s_key = ndb.Key(Session, s_id, parent=c_key)
@@ -709,4 +750,58 @@ class ConferenceApi(remote.Service):
         return self._createSessionObject(request)
 
 
-api = endpoints.api_server([ConferenceApi]) # register API
+    def _sessionWishlist(self, request, add=True):
+        retval = False
+        s_key = request.websafeSessionKey
+        prof = self._getProfileFromUser()
+
+        if add:
+            if s_key in prof.session_wishlist:
+                raise endpoints.ConflictException(
+                    'Session has already registered in your wishlist'
+                )
+            prof.session_wishlist.append(s_key)
+            retval = True
+        else:
+            if s_key in prof.session_wishlist:
+                prof.session_wishlist.remove(s_key)
+                retval = False
+        prof.put()
+
+        return BooleanMessage(data=retval)
+
+
+    @endpoints.method(WISHLIST_POST_REQUEST,
+                      BooleanMessage,
+                      path='wishlist/{websafeSessionKey}',
+                      http_method='POST',
+                      name='addSessionToWishlist')
+    def addSessionToWishlist(self, request):
+        return self._sessionWishlist(request)
+
+
+    @endpoints.method(WISHLIST_POST_REQUEST,
+                      BooleanMessage,
+                      path='wishlist/{websafeSessionKey}',
+                      http_method='DELETE',
+                      name='removeSessionFromWishlist')
+    def removeSessionFromWishlist(self, request):
+        return self._sessionWishlist(request, add=False)
+
+
+    @endpoints.method(message_types.VoidMessage,
+                      SessionForms,
+                      path='getSessionsInWishlist',
+                      http_method='GET',
+                      name='getSessionsInWishlist')
+    def getSessionsInWishlist(self, request):
+        prof = self._getProfileFromUser()
+        s_keys = prof.session_wishlist
+        sessions = [ndb.Key(urlsafe=s_key).get() for s_key in s_keys]
+
+        return SessionForms(
+            sessions=[self._copySessionToForm(sess) for sess in sessions]
+        )
+
+
+api = endpoints.api_server([ConferenceApi])  # register API
