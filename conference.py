@@ -54,6 +54,8 @@ API_EXPLORER_CLIENT_ID = endpoints.API_EXPLORER_CLIENT_ID
 MEMCACHE_ANNOUNCEMENTS_KEY = "RECENT_ANNOUNCEMENTS"
 ANNOUNCEMENT_TPL = ('Last chance to attend! The following conferences '
                     'are nearly sold out: %s')
+MEMCACHE_FEATURED_SPEAKER_KEY = 'FEATURED_SPEAKER'
+FEATURED_TPL = '%s is the featured speaker for the following sessions: %s'
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 DEFAULTS = {
@@ -860,6 +862,50 @@ class ConferenceApi(remote.Service):
 
         return SessionForms(
             sessions=[self._copySessionToForm(sess) for sess in sessions]
+        )
+
+
+# - - - Featured Speaker - - - - - - - - - - - - - - - - - - - -
+
+
+    @staticmethod
+    def _cacheFeaturedSpeaker():
+        wsck = 'ahNkZXZ-eW91ci1wcm9qZWN0LWlkcjcLEgdQcm9maWxlIhpzaGluc3VrZS5pa2VnYW1lQGdtYWlsLmNvbQwLEgpDb25mZXJlbmNlGAEM'
+        sessions = Session.query(ancestor=ndb.Key(urlsafe=wsck))\
+            .fetch(projection=[Session.name, Session.speakers])
+
+        feat_speaker = ''
+        speaker_container = []
+        for session in sessions:
+            for speaker in session.speakers:
+                if speaker not in speaker_container:
+                    speaker_container.append(speaker)
+                else:
+                    feat_speaker = speaker
+
+        feat_sessions = [sess.name for sess in sessions
+                         if feat_speaker in sess.speakers]
+
+        if feat_speaker:
+            message = FEATURED_TPL % \
+                      (feat_speaker, ', '.join(sess for sess in feat_sessions))
+            memcache.set(MEMCACHE_FEATURED_SPEAKER_KEY, message)
+        else:
+            message = ''
+            memcache.delete(MEMCACHE_FEATURED_SPEAKER_KEY)
+
+        return message
+
+
+    @endpoints.method(message_types.VoidMessage,
+                      StringMessage,
+                      path='getFeaturedSpeaker',
+                      http_method='GET',
+                      name='getFeaturedSpeaker')
+    def getFeaturedSpeaker(self, request):
+        self._cacheFeaturedSpeaker()
+        return StringMessage(
+            data=memcache.get(MEMCACHE_FEATURED_SPEAKER_KEY) or ''
         )
 
 

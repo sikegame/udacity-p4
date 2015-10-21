@@ -103,6 +103,12 @@ indexes:
 - kind: Session
   ancestor: yes
   properties:
+  - name: name
+  - name: speakers
+
+- kind: Session
+  ancestor: yes
+  properties:
   - name: sess_time
 
 - kind: Session
