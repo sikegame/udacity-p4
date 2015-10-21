@@ -14,7 +14,7 @@ __author__ = 'wesc+api@google.com (Wesley Chun)'
 
 
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, time
 
 import endpoints
 from protorpc import messages
@@ -607,14 +607,23 @@ class ConferenceApi(remote.Service):
         )
 
 
+# - - - Session - - - - - - - - - - - - - - - - - - - -
+
+
     def _copySessionToForm(self, sess):
         sf = SessionForm()
         for field in sf.all_fields():
             if hasattr(sess, field.name):
-                if field.name == 'start_time':
-                    dt = getattr(sess, 'start_time')
-                    setattr(sf, 'session_date', str(dt.date()))
-                    setattr(sf, 'start_time', str(dt.time()))
+                if field.name == 'sess_time':
+                    sess_time = getattr(sess, 'sess_time')
+                    if sess_time:
+                        setattr(sf, 'sess_time', str(sess_time)[:5])
+                    else:
+                        setattr(sf, 'sess_time', 'TBA')
+                elif field.name == 'sess_date':
+                    setattr(sf, 'sess_date', str(
+                        getattr(sess, 'sess_date')
+                    )[:10])
                 else:
                     setattr(sf, field.name, getattr(sess, field.name))
         sf.check_initialized()
@@ -647,11 +656,14 @@ class ConferenceApi(remote.Service):
 
         del data['websafeConferenceKey']
 
-        data['start_time'] = datetime.strptime(
-            data['start_time'], "%Y-%m-%d %H:%M:%S"
-        )
+        data['sess_date'] = datetime.strptime(
+            data['sess_date'][:10], '%Y-%m-%d'
+        ).date()
+        data['sess_time'] = datetime.strptime(
+            data['sess_time'][:5], '%H:%M'
+        ).time()
 
-        session_date = data['start_time'].date()
+        session_date = data['sess_date']
         if (conf.startDate > session_date) or \
                 (conf.endDate < session_date):
             raise endpoints.BadRequestException(
@@ -678,7 +690,8 @@ class ConferenceApi(remote.Service):
         sessions = Session.query(
             ancestor=ndb.Key(urlsafe=request.websafeConferenceKey)
         )\
-            .order(Session.start_time)
+            .order(Session.sess_date)\
+            .order(Session.sess_time)
 
         if not sessions:
             raise endpoints.NotFoundException(
@@ -696,7 +709,7 @@ class ConferenceApi(remote.Service):
                       http_method='POST',
                       name='getConferenceSessionsByType')
     def getConferenceSessionsByType(self, request):
-        if not request.session_type:
+        if not request.sess_type:
             raise endpoints.BadRequestException(
                 'Required field is missing'
             )
@@ -704,8 +717,9 @@ class ConferenceApi(remote.Service):
         sessions = Session.query(
             ancestor=ndb.Key(urlsafe=request.websafeConferenceKey)
         )\
-            .filter(Session.session_type == request.session_type)\
-            .order(Session.start_time)
+            .filter(Session.sess_type == request.sess_type)\
+            .order(Session.sess_date)\
+            .order(Session.sess_time)
 
         if not sessions:
             raise endpoints.NotFoundException(
@@ -729,7 +743,8 @@ class ConferenceApi(remote.Service):
             )
 
         sessions = Session.query(Session.speakers == request.speaker)\
-            .order(Session.start_time)
+            .order(Session.sess_date)\
+            .order(Session.sess_time)
 
         if not sessions:
             raise endpoints.NotFoundException(
@@ -748,6 +763,50 @@ class ConferenceApi(remote.Service):
                       name='createSession')
     def createSession(self, request):
         return self._createSessionObject(request)
+
+
+    def _filterSessionByTime(self, wsck,
+                             stop_time, start_time=time(0, 0)):
+        """ Filter sessions between start time and stop time
+
+        :param wsck: websafeConferenceKey
+        :param stop_time: filtering stop time
+        :param start_time: filtering start time (Optional)
+        :return: Session objects
+        """
+        # Filter query by filtering stop time
+        step_one = Session.query(ancestor=ndb.Key(urlsafe=wsck))\
+            .filter(Session.sess_time < stop_time)\
+            .fetch()
+        # Filter Session objects by filtering start time
+        step_two = [sess for sess in step_one
+                    if sess.sess_time >= start_time]
+
+        return step_two
+
+
+    @endpoints.method(SESSION_GET_REQUEST,
+                      SessionForms,
+                      path='conference/{websafeConferenceKey}/filter',
+                      http_method='GET',
+                      name='nonWorkshopBeforeSeven')
+    def nonWorkshopBeforeSeven(self, request):
+        TYPE_EXCLUDE = 'Workshop'
+        TIME_END = '19:00'  # HH:MM format
+
+        stop_time = datetime.strptime(TIME_END, '%H:%M').time()
+
+        sessions = self._filterSessionByTime(
+            request.websafeConferenceKey, stop_time
+        )
+
+        return SessionForms(
+            sessions=[self._copySessionToForm(sess) for sess in sessions
+                      if sess.sess_type != TYPE_EXCLUDE]
+        )
+
+
+# - - - Wishlist - - - - - - - - - - - - - - - - - - - -
 
 
     def _sessionWishlist(self, request, add=True):

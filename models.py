@@ -126,9 +126,10 @@ class Session(ndb.Model):
     name = ndb.StringProperty()
     speakers = ndb.StringProperty(repeated=True)
     highlights = ndb.StringProperty(repeated=True)
-    start_time = ndb.DateTimeProperty()
+    sess_date = ndb.DateProperty()
+    sess_time = ndb.TimeProperty()
     duration = ndb.IntegerProperty()
-    session_type = ndb.StringProperty()
+    sess_type = ndb.StringProperty()
     location = ndb.StringProperty()
 
 
@@ -136,10 +137,10 @@ class SessionForm(messages.Message):
     name = messages.StringField(1, required=True)
     speakers = messages.StringField(2, repeated=True)
     highlights = messages.StringField(3, repeated=True)
-    session_date = messages.StringField(4)  # DateTimeField()
-    start_time = messages.StringField(5)  # DateTimeField()
+    sess_date = messages.StringField(4)  # DateField()
+    sess_time = messages.StringField(5)  # TimeField()
     duration = messages.IntegerField(6)
-    session_type = messages.StringField(7)
+    sess_type = messages.StringField(7)
     location = messages.StringField(8)
 
 
