@@ -613,7 +613,16 @@ class ConferenceApi(remote.Service):
 
 
     def _copySessionToForm(self, sess):
+        """
+        Copy relevant fields from Session to SessionForm.
+
+        :param sess: Session object
+        :return: SessionForm
+        """
+        # Get empty SessionForm
         sf = SessionForm()
+
+        # Copy fields from Session to SessionForm
         for field in sf.all_fields():
             if hasattr(sess, field.name):
                 if field.name == 'sess_time':
@@ -634,6 +643,13 @@ class ConferenceApi(remote.Service):
 
     @authentication_required
     def _createSessionObject(self, request):
+        """
+        Create Session object
+
+        :param request: websafeConferenceKey
+        :return: SessionForm
+        """
+        # Get parent Conference entity
         c_key = ndb.Key(urlsafe=request.websafeConferenceKey)
         conf = c_key.get()
 
@@ -648,37 +664,47 @@ class ConferenceApi(remote.Service):
         user_id = getUserId(user)
         if user_id != conf.organizerUserId:
             raise endpoints.ForbiddenException(
-                'You must be the organizer of the conference'
-            )
+                'You must be the organizer of the conference')
 
-        data = {
-            field.name: getattr(request, field.name)
-            for field in request.all_fields()
-            }
+        # Check if user filled required fields
+        if not request.sess_time or \
+                not request.sess_date or \
+                not request.name:
+            raise endpoints.BadRequestException(
+                'Please fill all the required fields')
 
+        data = {field.name: getattr(request, field.name)
+                for field in request.all_fields()}
+
+        # Remove websafeConferenceKey for data consistency
         del data['websafeConferenceKey']
 
-        data['sess_date'] = datetime.strptime(
-            data['sess_date'][:10], '%Y-%m-%d'
-        ).date()
+        # Convert string data into date/time format
         data['sess_time'] = datetime.strptime(
-            data['sess_time'][:5], '%H:%M'
-        ).time()
+            data['sess_time'][:5], '%H:%M').time()
+        data['sess_date'] = datetime.strptime(
+            data['sess_date'][:10], '%Y-%m-%d').date()
 
+        # Check if session will held during the conference
         session_date = data['sess_date']
         if (conf.startDate > session_date) or \
                 (conf.endDate < session_date):
             raise endpoints.BadRequestException(
-                'Session must held during the conference'
-            )
+                'Session must held during the conference')
 
+        # Create unique key id
         s_id = Session.allocate_ids(size=1, parent=c_key)[0]
         s_key = ndb.Key(Session, s_id, parent=c_key)
         data['key'] = s_key
 
+        # Put data into Session entity
         Session(**data).put()
 
-        # NEED TO ADD TASKQUEUE HERE
+        # Set task queue for featured speaker
+        taskqueue.add(
+            params={'websafeConferenceKey': request.websafeConferenceKey},
+            url='/tasks/set_featured_speaker'
+        )
 
         return self._copySessionToForm(request)
 
@@ -869,8 +895,7 @@ class ConferenceApi(remote.Service):
 
 
     @staticmethod
-    def _cacheFeaturedSpeaker():
-        wsck = 'ahNkZXZ-eW91ci1wcm9qZWN0LWlkcjcLEgdQcm9maWxlIhpzaGluc3VrZS5pa2VnYW1lQGdtYWlsLmNvbQwLEgpDb25mZXJlbmNlGAEM'
+    def _cacheFeaturedSpeaker(wsck):
         sessions = Session.query(ancestor=ndb.Key(urlsafe=wsck))\
             .fetch(projection=[Session.name, Session.speakers])
 
@@ -903,7 +928,6 @@ class ConferenceApi(remote.Service):
                       http_method='GET',
                       name='getFeaturedSpeaker')
     def getFeaturedSpeaker(self, request):
-        self._cacheFeaturedSpeaker()
         return StringMessage(
             data=memcache.get(MEMCACHE_FEATURED_SPEAKER_KEY) or ''
         )
