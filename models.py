@@ -137,8 +137,8 @@ class SessionForm(messages.Message):
     name = messages.StringField(1, required=True)
     speakers = messages.StringField(2, repeated=True)
     highlights = messages.StringField(3, repeated=True)
-    sess_date = messages.StringField(4)  # DateField()
-    sess_time = messages.StringField(5)  # TimeField()
+    sess_date = messages.StringField(4, required=True)  # DateField()
+    sess_time = messages.StringField(5, required=True)  # TimeField()
     duration = messages.IntegerField(6)
     sess_type = messages.StringField(7)
     location = messages.StringField(8)
@@ -152,5 +152,27 @@ class SessionByTypeQueryForm(messages.Message):
     session_type = messages.StringField(1, required=True)
 
 
+class SessionByDurationQueryForm(messages.Message):
+    max_duration = messages.IntegerField(1, required=True)
+
+
 class SpeakerQueryForm(messages.Message):
     speaker = messages.StringField(1, required=True)
+
+
+class Speaker(ndb.Model):
+    name = ndb.StringProperty()
+    bio = ndb.TextProperty()
+    company = ndb.StringProperty()
+    mainEmail = ndb.StringProperty()
+
+
+class SpeakerForm(messages.Message):
+    name = messages.StringField(1, required=True)
+    bio = messages.StringField(2)
+    company = messages.StringField(3)
+    mainEmail = messages.StringField(4, required=True)
+
+
+class SpeakerForms(messages.Message):
+    speakers = messages.MessageField(SpeakerForm, 1, repeated=True)
