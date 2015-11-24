@@ -123,6 +123,7 @@ class ConferenceQueryForms(messages.Message):
 
 
 class Session(ndb.Model):
+    """Session -- Session object"""
     name = ndb.StringProperty()
     speakers = ndb.StringProperty(repeated=True)
     highlights = ndb.StringProperty(repeated=True)
@@ -134,6 +135,7 @@ class Session(ndb.Model):
 
 
 class SessionForm(messages.Message):
+    """SessionForm -- Session query outbound form message"""
     name = messages.StringField(1, required=True)
     speakers = messages.StringField(2, repeated=True)
     highlights = messages.StringField(3, repeated=True)
@@ -145,22 +147,27 @@ class SessionForm(messages.Message):
 
 
 class SessionForms(messages.Message):
+    """SessionForms -- multiple SessionForms outbound form message"""
     sessions = messages.MessageField(SessionForm, 1, repeated=True)
 
 
 class SessionByTypeQueryForm(messages.Message):
+    """SessionByTypeQueryForm -- SessionByTypeQueryForm query inbound form message"""
     session_type = messages.StringField(1, required=True)
 
 
 class SessionByDurationQueryForm(messages.Message):
+    """SessionByDurationQueryForm -- SessionByDurationQueryForm query inbound form message"""
     max_duration = messages.IntegerField(1, required=True)
 
 
 class SpeakerQueryForm(messages.Message):
+    """SpeakerQueryForm -- SpeakerQueryForm query inbound form message"""
     speaker = messages.StringField(1, required=True)
 
 
 class Speaker(ndb.Model):
+    """Speaker -- Speaker object"""
     name = ndb.StringProperty()
     bio = ndb.TextProperty()
     company = ndb.StringProperty()
@@ -168,6 +175,7 @@ class Speaker(ndb.Model):
 
 
 class SpeakerForm(messages.Message):
+    """Speaker -- Speaker query outbound form message"""
     name = messages.StringField(1, required=True)
     bio = messages.StringField(2)
     company = messages.StringField(3)
@@ -175,4 +183,5 @@ class SpeakerForm(messages.Message):
 
 
 class SpeakerForms(messages.Message):
+    """SpeakerForms -- multiple SpeakerForms outbound form message"""
     speakers = messages.MessageField(SpeakerForm, 1, repeated=True)

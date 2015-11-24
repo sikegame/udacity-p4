@@ -23,6 +23,14 @@ App Engine application for the Udacity training course.
 1. (Optional) Generate your client library(ies) with [the endpoints tool][6].
 1. Deploy your application.
 
+## Additional Queries
+- nonWorkshopBeforeSeven
+
+This query type takes websafeConferenceKey and returns all the sessions that hold before 7 pm and are not Keynote.
+
+- getSessionByDuration
+
+This query type takes websafeConferenceKey and maximum duration (in minute) and returns all the sessions with the duration of less than the maximum duration given at the specified conference.
 
 [1]: https://developers.google.com/appengine
 [2]: http://python.org
