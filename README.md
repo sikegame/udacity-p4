@@ -30,7 +30,7 @@ This query type takes websafeConferenceKey and returns all the sessions that hol
 
 `getSessionByDuration`
 
-This query type takes websafeConferenceKey and maximum duration (in minute) and returns all the sessions with the duration of less than the maximum duration given at the specific conference.
+This query type takes websafeConferenceKey and maximum duration (in minute) and returns all the sessions with the duration of less than the maximum minutes given at the specific conference.
 
 [1]: https://developers.google.com/appengine
 [2]: http://python.org
