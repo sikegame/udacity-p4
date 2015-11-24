@@ -29,7 +29,7 @@ Session and Speaker models were created with reusability and accessibility in mi
 
 Session entity has eight properties: name, speakers, highlights, session date, session time, duration, session type and location. For the session date and time fields, I used DateProperty and TimeProperty respectively because they make query easier. The speaker field can store multiple speakers, and it takes Speaker object key (speaker's email address) as an identifier.
 
-Speaker entity has four properties: name, bio, company, email address. It takes the speaker's email address as an entity key because it is unique to each speaker. I made the independent Speaker model because it allows users to reuse speaker's information instead of just storing a name in a Session object.
+Speaker entity has four properties: name, bio, company, email address. It takes the speaker's email address as an entity key because it is unique to each speaker. I made the independent Speaker model class because it allows users to reuse speaker's information instead of just storing a name in a Session object.
 
 ## My Approach to "Before 7, No Workshop" Problem
 
