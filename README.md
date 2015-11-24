@@ -25,9 +25,11 @@ App Engine application for the Udacity training course.
 
 ## Additional Queries
 `nonWorkshopBeforeSeven`
+
 This query type takes websafeConferenceKey and returns all the sessions that hold before 7 pm and are not Keynote.
 
 `getSessionByDuration`
+
 This query type takes websafeConferenceKey and maximum duration (in minute) and returns all the sessions with the duration of less than the maximum duration given at the specified conference.
 
 [1]: https://developers.google.com/appengine
