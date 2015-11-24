@@ -25,7 +25,7 @@ App Engine application for the Udacity training course.
 
 ## Design Decisions
 
-Session and Speaker models were created with reusability and accessibility in mind.
+Session and Speaker model classes were created with reusability and accessibility in mind.
 
 Session entity has eight properties: name, speakers, highlights, session date, session time, duration, session type and location. For the session date and time fields, I used DateProperty and TimeProperty respectively because they make query easier. The speaker field can store multiple speakers, and it takes Speaker object key (speaker's email address) as an identifier.
 
