@@ -31,6 +31,10 @@ Session entity has eight properties: name, speakers, highlights, session date, s
 
 Speaker entity has four properties: name, bio, company, email address. It takes the speaker's email address as an entity key because it is unique to each speaker. I made the independent Speaker model because it allows users to reuse speaker's information instead of just storing a name in a Session object.
 
+## My Approach to "Before 7, No Workshop" Problem
+
+In order to solve the Task 3 problem, I implemented the two-step solution. First, retrieve any sessions that hold before 7 pm, and then filter out those sessions with Workshop type. This looks redundant but can circumvent the App Engine's query restriction.
+
 ## Additional Queries (Task 3)
 `nonWorkshopBeforeSeven`
 
