@@ -103,6 +103,12 @@ indexes:
 - kind: Session
   properties:
   - name: speakers
+  - name: sess_date
+  - name: sess_time
+
+- kind: Session
+  properties:
+  - name: speakers
   - name: start_time
 
 - kind: Session
