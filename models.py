@@ -137,7 +137,7 @@ class Session(ndb.Model):
 class SessionForm(messages.Message):
     """SessionForm -- Session query outbound form message"""
     name = messages.StringField(1, required=True)
-    speakers = messages.StringField(2, repeated=True)
+    speakers = messages.StringField(2, repeated=True) # Speaker email address
     highlights = messages.StringField(3, repeated=True)
     sess_date = messages.StringField(4, required=True)  # DateField()
     sess_time = messages.StringField(5, required=True)  # TimeField()
