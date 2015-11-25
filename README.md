@@ -33,7 +33,7 @@ Speaker entity has four properties: name, bio, company, email address. It takes 
 
 ## My Approach to "Before 7 No Workshop" Problem
 
-An inequality filter can be applied to only one property. Therefore, the "Before 7 No Workshop" problem cannot be solved in one query.
+An inequality filter can be applied to only one property. Therefore, the "Before 7 No Workshop" problem cannot be solved in a single query.
 
 In order to solve the Task 3 problem, I implemented the two-step solution. First, retrieve any sessions that hold before 7 pm, and then filter out those sessions with Workshop type. This looks redundant but can circumvent the App Engine's query restriction.
 
